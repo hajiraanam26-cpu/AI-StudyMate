@@ -1,53 +1,59 @@
-# AI StudyMate
+# 📚 AI StudyMate
 
-AI StudyMate is an AI-powered document question-answering application built with Python and Streamlit.
+AI StudyMate is an intermediate-level document-based Question & Answer application built using Python, Streamlit, Ollama, embeddings, and Retrieval-Augmented Generation (RAG).
 
-It uses a Retrieval-Augmented Generation (RAG) workflow to answer questions based on uploaded PDF or TXT documents.
-
-## Features
+## 🚀 Features
 
 - Upload PDF and TXT documents
 - Extract text from documents
 - Split documents into smaller chunks
-- Create document embeddings
-- Find relevant document sections using similarity search
-- Generate answers using a local AI model
+- Generate document embeddings
+- Search for relevant document sections
+- Generate answers using retrieved context
 - Display retrieved source context
-- Basic validation for empty questions and invalid documents
-- Simple Streamlit user interface
+- Handle empty questions
+- Handle invalid or unreadable documents
+- Simple and beginner-friendly Streamlit interface
 
-## RAG Workflow
+## 🔄 RAG Workflow
 
 1. Upload a PDF or TXT document
-2. Extract the document text
+2. Extract text from the document
 3. Split the text into chunks
-4. Create embeddings using `nomic-embed-text`
-5. Convert the question into an embedding
-6. Find the most relevant document chunks
+4. Generate embeddings for the chunks
+5. Convert the user's question into an embedding
+6. Find the most relevant chunks using cosine similarity
 7. Send the retrieved context to the AI model
 8. Generate a grounded answer
 9. Display the retrieved source context
 
-## Technologies Used
+## 🛠️ Technologies Used
 
 - Python
 - Streamlit
 - Ollama
+- Llama 3.2 1B
+- Nomic Embed Text
 - PyPDF
-- scikit-learn
-- nomic-embed-text
-- llama3.2:1b
+- Scikit-learn
+- NumPy
 
-## Project Files
+## 🤖 AI Models
 
-- `app.py` — Main RAG application
-- `beginner_app.py` — Backup of the beginner version
-- `requirements.txt` — Python dependencies
-- `README.md` — Project documentation
+### Generation Model
+`llama3.2:1b`
 
-## How to Run
+### Embedding Model
+`nomic-embed-text`
 
-Install the required Python packages:
+## 📄 Supported Files
+
+- PDF
+- TXT
+
+## ▶️ How to Run
+
+Install the required packages:
 
 ```bash
 pip install -r requirements.txt
