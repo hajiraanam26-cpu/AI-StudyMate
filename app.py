@@ -1,47 +1,54 @@
 import streamlit as st
-from pypdf import PdfReader
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 import ollama
+from pypdf import PdfReader
+from sklearn.metrics.pairwise import cosine_similarity
 
 
 st.set_page_config(
-    page_title="AI StudyMate RAG",
-    page_icon="📚",
-    layout="wide"
+    page_title="AI StudyMate - RAG",
+    page_icon="📚"
 )
 
-
-st.title("📚 AI StudyMate — Intermediate RAG")
-st.write(
-    "Upload a PDF and ask questions. The application searches "
-    "relevant information from your document before answering."
-)
+st.title("📚 AI StudyMate")
+st.write("Intermediate Document Q&A using RAG")
 
 
-def extract_pdf_text(uploaded_file):
-    """Extract text from all pages of a PDF."""
-    reader = PdfReader(uploaded_file)
+# -----------------------------
+# Functions
+# -----------------------------
 
-    all_text = []
+def extract_text(uploaded_file):
+    """Extract text from PDF or TXT files."""
 
-    for page in reader.pages:
-        page_text = page.extract_text()
+    if uploaded_file.name.lower().endswith(".pdf"):
+        reader = PdfReader(uploaded_file)
 
-        if page_text:
-            all_text.append(page_text)
+        text = ""
 
-    return "\n".join(all_text)
+        for page in reader.pages:
+            page_text = page.extract_text()
+
+            if page_text:
+                text += page_text + "\n"
+
+        return text
+
+    elif uploaded_file.name.lower().endswith(".txt"):
+        return uploaded_file.read().decode("utf-8")
+
+    return ""
 
 
-def split_text(text, chunk_size=800, overlap=100):
-    """Split long text into smaller overlapping chunks."""
+def create_chunks(text, chunk_size=800, overlap=100):
+    """Split document text into smaller chunks."""
+
     chunks = []
 
     start = 0
 
     while start < len(text):
         end = start + chunk_size
+
         chunk = text[start:end].strip()
 
         if chunk:
@@ -52,55 +59,80 @@ def split_text(text, chunk_size=800, overlap=100):
     return chunks
 
 
-def retrieve_relevant_chunks(question, chunks, top_k=3):
-    """Find the most relevant chunks using TF-IDF similarity."""
-    if not chunks:
-        return []
+def create_embeddings(chunks):
+    """Create embeddings using Ollama."""
 
-    documents = chunks + [question]
+    embeddings = []
 
-    vectorizer = TfidfVectorizer(
-        stop_words="english"
+    for chunk in chunks:
+        response = ollama.embed(
+            model="nomic-embed-text",
+            input=chunk
+        )
+
+        embeddings.append(response["embeddings"][0])
+
+    return embeddings
+
+
+def retrieve_chunks(question, chunks, embeddings, top_k=3):
+    """Retrieve the most relevant document chunks."""
+
+    question_response = ollama.embed(
+        model="nomic-embed-text",
+        input=question
     )
 
-    vectors = vectorizer.fit_transform(documents)
-
-    chunk_vectors = vectors[:-1]
-    question_vector = vectors[-1]
+    question_embedding = question_response["embeddings"][0]
 
     similarities = cosine_similarity(
-        question_vector,
-        chunk_vectors
-    ).flatten()
+        [question_embedding],
+        embeddings
+    )[0]
 
-    top_indices = similarities.argsort()[-top_k:][::-1]
+    ranked_indexes = similarities.argsort()[::-1][:top_k]
 
-    relevant_chunks = [
-        chunks[index]
-        for index in top_indices
-        if similarities[index] > 0
-    ]
+    results = []
 
-    return relevant_chunks
+    for index in ranked_indexes:
+        results.append({
+            "text": chunks[index],
+            "score": float(similarities[index])
+        })
+
+    return results
 
 
-def ask_ollama(question, context):
-    """Generate an answer using the local Ollama model."""
+def generate_answer(question, retrieved_chunks):
+    """Generate an answer using retrieved document context."""
+
+    context = "\n\n".join(
+        [
+            f"Source {i + 1}:\n{item['text']}"
+            for i, item in enumerate(retrieved_chunks)
+        ]
+    )
+
     prompt = f"""
 You are an AI study assistant.
 
-Answer the user's question using only the provided document context.
+Answer the user's question using ONLY the information
+provided in the document context below.
 
-If the answer is not available in the context, say:
-"I could not find this information in the uploaded document."
+If the answer is not available in the context,
+say:
 
-Explain the answer clearly and simply.
+"I could not find the answer in the uploaded document."
+
+Do not use outside knowledge.
 
 DOCUMENT CONTEXT:
 {context}
 
-USER QUESTION:
+QUESTION:
 {question}
+
+Give a clear and concise answer.
 """
 
     response = ollama.chat(
@@ -116,101 +148,184 @@ USER QUESTION:
     return response["message"]["content"]
 
 
-uploaded_file = st.file_uploader(
-    "Upload a PDF document",
-    type=["pdf"]
+# -----------------------------
+# File Upload
+# -----------------------------
+
+st.header("📄 Upload Documents")
+
+uploaded_files = st.file_uploader(
+    "Upload PDF or TXT files",
+    type=["pdf", "txt"],
+    accept_multiple_files=True
 )
 
 
-if uploaded_file is not None:
-    with st.spinner("Reading your PDF..."):
-        pdf_text = extract_pdf_text(uploaded_file)
+if uploaded_files:
 
-    if not pdf_text.strip():
-        st.error(
-            "No readable text was found in this PDF. "
-            "Try uploading a text-based PDF."
-        )
-        st.stop()
+    all_text = ""
 
-    chunks = split_text(pdf_text)
+    for uploaded_file in uploaded_files:
 
-    st.success(
-        f"PDF processed successfully. Created {len(chunks)} text chunks."
-    )
+        try:
+            text = extract_text(uploaded_file)
 
-    with st.expander("Preview extracted text"):
-        st.write(pdf_text[:3000])
+            if text.strip():
+                all_text += f"\n\n--- {uploaded_file.name} ---\n\n"
+                all_text += text
 
-    st.divider()
-
-    st.subheader("Ask a question about your PDF")
-
-    question = st.text_input(
-        "Enter your question",
-        placeholder="Example: What are the main topics discussed in this document?"
-    )
-
-    top_k = st.slider(
-        "Number of relevant sections to retrieve",
-        min_value=1,
-        max_value=5,
-        value=3
-    )
-
-    if st.button("🔍 Search and Answer"):
-        if not question.strip():
-            st.warning("Please enter a question first.")
-        else:
-            with st.spinner("Searching the document..."):
-                relevant_chunks = retrieve_relevant_chunks(
-                    question,
-                    chunks,
-                    top_k
-                )
-
-            if not relevant_chunks:
-                st.warning(
-                    "No relevant information was found in the document."
-                )
             else:
-                context = "\n\n---\n\n".join(relevant_chunks)
+                st.warning(
+                    f"Could not extract text from {uploaded_file.name}"
+                )
 
-                with st.expander("Retrieved document sections"):
-                    for number, chunk in enumerate(
-                        relevant_chunks,
-                        start=1
+        except Exception as e:
+            st.error(
+                f"Error reading {uploaded_file.name}: {e}"
+            )
+
+    if all_text.strip():
+
+        # -----------------------------
+        # Chunking
+        # -----------------------------
+
+        chunks = create_chunks(all_text)
+
+        st.success(
+            f"Documents loaded successfully. "
+            f"Created {len(chunks)} text chunks."
+        )
+
+        # -----------------------------
+        # Embeddings
+        # -----------------------------
+
+        with st.spinner("Creating document embeddings..."):
+
+            try:
+                embeddings = create_embeddings(chunks)
+
+                st.success(
+                    "Document embeddings created successfully."
+                )
+
+            except Exception as e:
+
+                st.error(
+                    f"Embedding error: {e}"
+                )
+
+                st.stop()
+
+        # Store information in session
+        st.session_state["chunks"] = chunks
+        st.session_state["embeddings"] = embeddings
+
+
+# -----------------------------
+# Question Answering
+# -----------------------------
+
+st.header("💬 Ask Questions")
+
+question = st.text_input(
+    "Ask a question about your uploaded document:"
+)
+
+
+if st.button("🔎 Search and Answer"):
+
+    if not uploaded_files:
+        st.warning(
+            "Please upload a PDF or TXT document first."
+        )
+
+    elif not question.strip():
+        st.warning(
+            "Please enter a question."
+        )
+
+    elif "chunks" not in st.session_state:
+        st.warning(
+            "Please wait until the document is processed."
+        )
+
+    else:
+
+        with st.spinner("Finding relevant document sections..."):
+
+            try:
+
+                retrieved_chunks = retrieve_chunks(
+                    question,
+                    st.session_state["chunks"],
+                    st.session_state["embeddings"],
+                    top_k=3
+                )
+
+                # -----------------------------
+                # Answer
+                # -----------------------------
+
+                answer = generate_answer(
+                    question,
+                    retrieved_chunks
+                )
+
+                st.subheader("🤖 Answer")
+
+                st.write(answer)
+
+                # -----------------------------
+                # Retrieved Context
+                # -----------------------------
+
+                st.subheader("📖 Retrieved Source Context")
+
+                for i, result in enumerate(
+                    retrieved_chunks
+                ):
+
+                    with st.expander(
+                        f"Source {i + 1} "
+                        f"(similarity: {result['score']:.2f})"
                     ):
-                        st.markdown(
-                            f"**Section {number}**\n\n{chunk}"
-                        )
 
-                with st.spinner("Generating answer with Ollama..."):
-                    try:
-                        answer = ask_ollama(
-                            question,
-                            context
-                        )
+                        st.write(result["text"])
 
-                        st.subheader("🤖 AI Answer")
-                        st.write(answer)
+            except Exception as e:
 
-                    except Exception as error:
-                        st.error(
-                            "Ollama could not generate an answer. "
-                            "Make sure Ollama is running and the model "
-                            "llama3.2:1b is installed."
-                        )
+                st.error(
+                    f"❌ Error while answering: {e}"
+                )
 
-                        st.code(str(error))
 
-else:
-    st.info(
-        "Please upload a PDF file to begin."
-    )
+# -----------------------------
+# Information
+# -----------------------------
 
-st.divider()
+st.sidebar.header("ℹ️ About")
 
-st.caption(
-    "Built with Python, Streamlit, PyPDF, TF-IDF, and Ollama."
+st.sidebar.write(
+    """
+AI StudyMate uses a Retrieval-Augmented Generation
+(RAG) workflow.
+
+1. Upload a document
+2. Extract the text
+3. Split the text into chunks
+4. Create embeddings
+5. Search for relevant chunks
+6. Send retrieved context to the AI
+7. Generate a grounded answer
+"""
+)
+
+st.sidebar.write(
+    "Embedding model: nomic-embed-text"
+)
+
+st.sidebar.write(
+    "AI model: llama3.2:1b"
 )

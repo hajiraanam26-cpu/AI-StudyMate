@@ -1,4 +1,6 @@
 streamlit
+ollama
 pypdf
 scikit-learn
-ollama
+sentence-transformers
+numpy
