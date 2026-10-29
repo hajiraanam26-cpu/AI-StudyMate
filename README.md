@@ -1,29 +1,27 @@
 # 📚 AI StudyMate
 
-AI StudyMate is a document-based Question & Answer application built with Python, Streamlit, FastAPI, Ollama, and Retrieval-Augmented Generation (RAG).
-
-It allows users to upload PDF or TXT documents, ask questions about their content, and receive answers based on relevant document sections.
+AI StudyMate is a document-based Question and Answer application built using Python, Streamlit, FastAPI, Ollama, LangGraph, and FAISS. It uses Retrieval-Augmented Generation (RAG) to answer questions using information from uploaded study documents.
 
 ## ✨ Features
 
-- Upload PDF and TXT documents.
-- Extract and split document text into smaller chunks.
-- Generate embeddings for document sections.
-- Retrieve relevant text for user questions.
-- Generate answers using a local AI model.
-- Display retrieved source context.
-- Handle empty questions and invalid documents.
-- Provide a simple user interface using Streamlit.
+- Upload PDF, TXT, and Markdown documents.
+- Extract text and divide it into smaller chunks.
+- Generate embeddings for document chunks.
+- Retrieve relevant information using FAISS similarity search.
+- Generate answers using a local language model.
+- Display answers and relevant source information.
+- Provide a simple Streamlit user interface.
+- Validate uploaded documents and empty questions.
 
 ## 🔄 How It Works
 
-1. Upload a PDF or TXT document.
+1. Upload a study document.
 2. Extract text from the document.
-3. Divide the text into smaller chunks.
-4. Generate embeddings for the chunks.
-5. Retrieve relevant chunks for the user's question.
-6. Send the retrieved context to the AI model.
-7. Display the answer and source information.
+3. Divide the extracted text into smaller chunks.
+4. Generate embeddings using the `nomic-embed-text` model.
+5. Retrieve relevant chunks using FAISS.
+6. Send the retrieved context to the `llama3.2:1b` language model through Ollama.
+7. Display the generated answer and source information.
 
 ## 🛠️ Technologies Used
 
@@ -36,22 +34,17 @@ It allows users to upload PDF or TXT documents, ask questions about their conten
 - Llama 3.2 1B
 - Nomic Embed Text
 
-## 🤖 AI Models
-
-**Generation model:** `llama3.2:1b`
-
-**Embedding model:** `nomic-embed-text`
-
 ## 📄 Supported Documents
 
-- PDF
-- TXT
+- PDF (`.pdf`)
+- Text (`.txt`)
+- Markdown (`.md`)
 
 ## ⚙️ Requirements
 
 - Python
 - Ollama
-- The AI models listed above
+- The required Ollama models
 - Python packages listed in `requirements.txt`
 
 ## 🚀 Installation and Setup
@@ -84,18 +77,18 @@ Install Ollama from its official website:
 
 https://ollama.com/
 
-Open a terminal and download the required models:
+Download the required models:
 
 ```bash
 ollama pull llama3.2:1b
 ollama pull nomic-embed-text
 ```
 
-Make sure Ollama is running before using the application.
+Ensure Ollama is running before using the application.
 
 ## ▶️ Running the Application
 
-Open two terminals in the project folder and activate the virtual environment in each terminal.
+Open two terminals in the project folder and activate the virtual environment in both.
 
 ### Terminal 1: Start the FastAPI backend
 
@@ -103,13 +96,13 @@ Open two terminals in the project folder and activate the virtual environment in
 python -m uvicorn backend.main:app --reload
 ```
 
-The backend should be available at:
+Backend address:
 
-`http://127.0.0.1:8000`
+http://127.0.0.1:8000
 
 Health check:
 
-`http://127.0.0.1:8000/health`
+http://127.0.0.1:8000/health
 
 ### Terminal 2: Start the Streamlit frontend
 
@@ -119,7 +112,7 @@ python -m streamlit run frontend/app.py --server.port 8505
 
 Open the application in your browser:
 
-`http://localhost:8505`
+http://localhost:8505
 
 ## 📁 Project Structure
 
@@ -141,16 +134,17 @@ AI-StudyMate/
 
 ## 🎯 Project Objective
 
-The objective of AI StudyMate is to demonstrate how document retrieval and a language model can work together to answer questions using information from uploaded documents.
+The objective of AI StudyMate is to demonstrate how document processing, vector similarity search, and a language model can work together to answer questions based on uploaded study materials.
 
 ## 👩‍💻 Author
 
 Hajira Anam
 
-## 📌 Future Improvements
+## 🔮 Future Improvements
 
-- Improve answer-grounding and retrieval accuracy.
-- Add more document formats.
-- Add document-specific retrieval and filtering.
-- Improve error handling and user feedback.
-- Add Docker support and automated tests.
+- Improve retrieval accuracy and answer grounding.
+- Support additional document formats.
+- Add persistent document storage.
+- Improve error handling and testing.
+- Add Docker support.
+- Improve the user interface.
