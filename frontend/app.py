@@ -5,11 +5,11 @@ API_URL = "http://127.0.0.1:8000"
 
 st.set_page_config(
     page_title="AI StudyMate",
-    page_icon="📚",
+    page_icon="Book",
     layout="wide"
 )
 
-st.title("📚 AI StudyMate")
+st.title("AI StudyMate")
 st.subheader("Ask questions about your study documents")
 st.write(
     "Upload a PDF, TXT, or Markdown file and get answers "
